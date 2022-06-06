@@ -1,0 +1,34 @@
+{
+  "name": "@persistr/store",
+  "version": "4.6.0",
+  "description": "Persistr data store",
+  "main": "./src",
+  "author": "Sasa Djolic <sasa.djolic@gmail.com> (https://www.linkedin.com/in/sasadjolic/)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/persistr/store.git"
+  },
+  "scripts": {
+    "test": "npm run cover:memory && nyc report --reporter=lcov --reporter=text",
+    "cover:memory": "nyc --silent npm run test:memory",
+    "test:memory": "DB=sqlite3:memory ./node_modules/.bin/cucumber-js ./tests/features -r ./tests/steps --publish-quiet"
+  },
+  "dependencies": {
+    "@persistr/server-crypto": "^4.5.4",
+    "knex": "^2.1.0",
+    "luxon": "^1.3.2",
+    "matcher": "^2.1.0",
+    "sqlite3": "^5.0.8",
+    "uuid": "^8.3.2",
+    "uuid-parse": "^1.0.0",
+    "wildcards-to-mysql": "^1.0.0"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "^8.2.1",
+    "json5": "^2.2.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
