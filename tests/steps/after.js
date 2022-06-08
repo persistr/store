@@ -8,5 +8,6 @@ After(async function() {
   this.namespace = undefined
   this.stream = undefined
   this.events = undefined
+  this.collection = undefined
   await this.store.disconnect()
 })

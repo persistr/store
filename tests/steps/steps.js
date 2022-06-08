@@ -6,6 +6,7 @@ const AccountNotFound = require('../../src/errors/AccountNotFound')
 const AnnotationNotFound = require('../../src/errors/AnnotationNotFound')
 const DatabaseNotFound = require('../../src/errors/DatabaseNotFound')
 const DatabaseTaken = require('../../src/errors/DatabaseTaken')
+const DocumentNotFound = require('../../src/errors/DocumentNotFound')
 const DuplicateEvent = require('../../src/errors/DuplicateEvent')
 const EventNotFound = require('../../src/errors/EventNotFound')
 const NamespaceNotFound = require('../../src/errors/NamespaceNotFound')
@@ -880,6 +881,53 @@ Then("I can't find annotation", async function () {
 
 Then('I get an annotation not found error', async function () {
   assert(this.error instanceof AnnotationNotFound)
+  this.error = undefined
+})
+
+//
+// Documents
+//
+
+Given('collection {string}', async function (collection) {
+  this.collection = collection
+})
+
+When('I write document {string}', async function (content) {
+  const doc = toObject(content)
+  this.document = await this.store.documents.write({ db: this.database.name, collection: this.collection, doc })
+})
+
+Then('I try to read document with ID {string}', async function (id) {
+  const doc = await this.store.documents.read({ db: this.database.name, collection: this.collection, id })
+  this.error = new DocumentNotFound(this.database.name, this.collection, id)
+})
+
+When('I destroy the document', async function () {
+  await this.store.documents.destroy({ db: this.database.name, collection: this.collection, id: this.document.id })
+})
+
+When('I try to destroy document with ID {string}', async function (id) {
+  try {
+    await this.store.documents.destroy({ db: this.database.name, collection: this.collection, id })
+  }
+  catch (error) {
+    this.error = error
+  }
+})
+
+Then('I can confirm that content of document with ID {string} is {string}', async function (id, content) {
+  const doc = await this.store.documents.read({ db: this.database.name, collection: this.collection, id })
+  assert(doc)
+  assert.deepStrictEqual(doc, toObject(content))
+})
+
+Then("I can't find the document", async function () {
+  const doc = await this.store.documents.read({ db: this.database.name, collection: this.collection, id: this.document.id })
+  assert(!doc)
+})
+
+Then('I get a document not found error', async function () {
+  assert(this.error instanceof DocumentNotFound)
   this.error = undefined
 })
 

@@ -131,6 +131,16 @@ async function initialize(knex, client) {
       table.string('name', 100).notNullable().unique()
     })
   })
+  await knex.schema.hasTable('Documents').then(exists => {
+    if (!exists) return knex.schema.createTable('Documents', table => {
+      if (client === 'mysql') table.charset('utf8mb4')
+      table.binary('db', 16).notNullable()
+      table.string('collection', 100).notNullable()
+      table.binary('id', 16).notNullable()
+      table.json('data').notNullable()
+      table.primary(['db', 'collection', 'id'])
+    })
+  })
   await knex.schema.hasTable('Events').then(exists => {
     if (!exists) return knex.schema.createTable('Events', table => {
       if (client === 'mysql') table.charset('utf8mb4')
