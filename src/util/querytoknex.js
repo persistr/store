@@ -19,7 +19,7 @@ function queryByMethod (knex, key, value, knexMethodName) {
   }
 
   knex.where(function () {
-    value.forEach(item => mongoToKnex(item, this, null, knexMethodName))
+    value.forEach(item => queryToKnex(item, this, null, knexMethodName))
   })
 }
 
@@ -27,7 +27,7 @@ const queryToKnex = (query, knex, parentKey, parentKnexMethodName) => {
   Object.keys(query).forEach((key) => {
     const value = query[key]
 
-    if (isObject(value)) return mongoToKnex(value, knex, key)
+    if (isObject(value)) return queryToKnex(value, knex, key)
 
     const knexMethodName = methods[key]
     if (knexMethodName) return queryByMethod(knex, key, value, knexMethodName)
