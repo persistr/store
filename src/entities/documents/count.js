@@ -6,11 +6,20 @@ const countDocumentsForDatabase = async (toolbox, identity, { db: dbName, collec
   const db = await store.databases.find(identity, { name: dbName })
 
   const knexQuery = knex('Documents')
-  queryToKnex(query, knexQuery)
+  const complexRegexList = []
+  queryToKnex(query, knexQuery, complexRegexList)
   knexQuery.andWhere({ db: uuid.toBuffer(db.id), collection })
   knexQuery.count('id', { as: 'count' })
 
-  const results = await knexQuery
+  let results = await knexQuery
+  if(complexRegexList.length>0){
+    results = results.filter(row => {
+      return complexRegexList.some(item=>{
+        const regexp = new RegExp(item.value)
+        return regexp.test(row[item.column])
+      })
+    })
+  }
   if (!results || results.length !== 1) return 0
   return results[0].count
 }

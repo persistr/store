@@ -8,8 +8,26 @@ const operators = {
   $lt: '<',
   $lte: '<=',
   $gt: '>',
-  $gte: '>='
+  $gte: '>=',
+  $regex: 'like'
 }
+
+const regexChars = [
+  '^',
+  '[',
+  ']',
+  '-',
+  '$',
+  '(',
+  ')',
+  '{',
+  '}',
+  '|',
+  '?',
+  '+',
+  '!',
+  '\\',
+]
 
 const isObject = (o) => Object.prototype.toString.call(o) === '[object Object]'
 
@@ -19,12 +37,12 @@ function queryByMethod (knex, key, value, knexMethodName) {
   }
 
   knex.where(function () {
-    value.forEach(item => mongoToKnex(item, this, null, knexMethodName))
+    value.forEach(item => queryToKnex(item, this, null, knexMethodName))
   })
 }
 
 const queryToKnex = (query, knex, parentKey, parentKnexMethodName) => {
-  Object.keys(query).forEach((key) => {
+  Object.keys(query || {}).forEach((key) => {
     const value = query[key]
 
     if (isObject(value)) return mongoToKnex(value, knex, key)
@@ -35,8 +53,18 @@ const queryToKnex = (query, knex, parentKey, parentKnexMethodName) => {
     const column = parentKey || key
     const operator = operators[key] || '='
 
+    if(operator === 'like'){
+      const isLikeCompatible = regexChars.every(char=>!value.includes(char))
+      if(isLikeCompatible){
+        value = value.replaceAll('*','%').replaceAll('.','_')
+      } else {
+        console.warn(`Regex filter for column ${column} with value of ${value} is not SQL LIKE compatible!`)
+        return
+      }
+    }
+
     const methodName = parentKnexMethodName || 'where'
-    return knex.whereJsonPath('data', `$.${column}`, operator, value)
+    return knex[`${methodName}JsonPath`]('data', `$.${column}`, operator, value)
   })
 }
 

@@ -9,7 +9,8 @@ const findDocumentsForDatabase = async (toolbox, identity, { db: dbName, collect
   const db = await store.databases.find(identity, { name: dbName })
 
   const knexQuery = knex('Documents')
-  queryToKnex(query, knexQuery)
+  const complexRegexList = []
+  queryToKnex(query, knexQuery, complexRegexList)
   knexQuery.andWhere({ db: uuid.toBuffer(db.id), collection })
 
   if (options.skip) knexQuery.offset(Number(options.skip))
@@ -19,7 +20,17 @@ const findDocumentsForDatabase = async (toolbox, identity, { db: dbName, collect
   if (options.sort) knexQuery.orderBy(options.sort.by ?? options.sort, options.sort.order ?? 'asc')
 
   const results = await knexQuery
-  return results.map(row => JSON.parse(row.data))
+  // filter results with complex regex
+  results = results.map(row => JSON.parse(row.data))
+  if(complexRegexList.length>0){
+    results = results.filter(row => {
+      return complexRegexList.some(item=>{
+        const regexp = new RegExp(item.value)
+        return regexp.test(row[item.column])
+      })
+    })
+  }
+  return results
 }
 
 module.exports = async (toolbox, identity, options) => {
