@@ -15,8 +15,7 @@ const findDocumentsForDatabase = async (toolbox, identity, { db: dbName, collect
   if (options.skip) knexQuery.offset(Number(options.skip))
   if (options.limit) knexQuery.limit(Number(options.limit))
 
-  // TODO: Needs to be modified to support sorting by elements within the JSON 'data' column.
-  if (options.sort) knexQuery.orderBy(options.sort.by ?? options.sort, options.sort.order ?? 'asc')
+  if (options.sort) knexQuery.orderByRaw(`data->"$.${options.sort.by ?? options.sort}" ${options.sort.order ?? 'asc'}`)
 
   const results = await knexQuery
   return results.map(row => JSON.parse(row.data))
