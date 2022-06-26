@@ -6,7 +6,7 @@ const countDocumentsForDatabase = async (toolbox, identity, { db: dbName, collec
   const db = await store.databases.find(identity, { name: dbName })
 
   const knexQuery = knex('Documents')
-  queryToKnex(query, knexQuery)
+  queryToKnex(query, knexQuery, { strict: true })
   knexQuery.andWhere({ db: uuid.toBuffer(db.id), collection })
   knexQuery.count('id', { as: 'count' })
 

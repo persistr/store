@@ -9,16 +9,15 @@ const findDocumentsForDatabase = async (toolbox, identity, { db: dbName, collect
   const db = await store.databases.find(identity, { name: dbName })
 
   const knexQuery = knex('Documents')
-  queryToKnex(query, knexQuery)
+  const filter = queryToKnex(query, knexQuery)
   knexQuery.andWhere({ db: uuid.toBuffer(db.id), collection })
 
-  if (options.skip) knexQuery.offset(Number(options.skip))
-  if (options.limit) knexQuery.limit(Number(options.limit))
-
-  if (options.sort) knexQuery.orderByRaw(`data->"$.${options.sort.by ?? options.sort}" ${options.sort.order ?? 'asc'}`)
+  if (options?.skip) knexQuery.offset(Number(options.skip))
+  if (options?.limit) knexQuery.limit(Number(options.limit))
+  if (options?.sort) knexQuery.orderByRaw(`data->"$.${options.sort.by ?? options.sort}" ${options.sort.order ?? 'asc'}`)
 
   const results = await knexQuery
-  return results.map(row => JSON.parse(row.data))
+  return filter(results.map(row => JSON.parse(row.data)))
 }
 
 module.exports = async (toolbox, identity, options) => {

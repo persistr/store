@@ -897,6 +897,21 @@ When('I write document {string}', async function (content) {
   this.document = await this.store.documents.write({ db: this.database.name, collection: this.collection, doc })
 })
 
+When('I search for documents matching {string}', async function (content) {
+  const query = toObject(content)
+  this.documents = await this.store.documents.find({ db: this.database.name, collection: this.collection, query })
+})
+
+When('I search for documents matching {string} on page {int} with page size {int}', async function (content, page, size) {
+  const query = toObject(content)
+  this.documents = await this.store.documents.find({ db: this.database.name, collection: this.collection, query, options: { skip: (page - 1) * size, limit: size }})
+})
+
+When('I search for documents matching {string} in {string} order of {string}', async function (content, order, column) {
+  const query = toObject(content)
+  this.documents = await this.store.documents.find({ db: this.database.name, collection: this.collection, query, options: { sort: { by: column, order }}})
+})
+
 Then('I try to read document with ID {string}', async function (id) {
   const doc = await this.store.documents.read({ db: this.database.name, collection: this.collection, id })
   this.error = new DocumentNotFound(this.database.name, this.collection, id)
@@ -929,6 +944,33 @@ Then("I can't find the document", async function () {
 Then('I get a document not found error', async function () {
   assert(this.error instanceof DocumentNotFound)
   this.error = undefined
+})
+
+Then('I count {int} documents', async function (count) {
+  assert.equal(count, await this.store.documents.count({ db: this.database.name, collection: this.collection }))
+})
+
+Then('I count {int} documents matching {string}', async function (count, content) {
+  const query = toObject(content)
+  assert.equal(count, await this.store.documents.count({ db: this.database.name, collection: this.collection, query }))
+})
+
+Then('I count {int} document matching {string}', async function (count, content) {
+  const query = toObject(content)
+  assert.equal(count, await this.store.documents.count({ db: this.database.name, collection: this.collection, query }))
+})
+
+Then('I get {int} search result', async function (count) {
+  assert.equal(this.documents?.length, count)
+})
+
+Then('I get {int} search results', async function (count) {
+  assert.equal(this.documents?.length, count)
+})
+
+Then('search result {int} is {string}', async function (index, content) {
+  const doc = toObject(content)
+  assert.deepStrictEqual(this.documents[index - 1], doc)
 })
 
 //
