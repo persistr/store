@@ -9,5 +9,7 @@ After(async function() {
   this.stream = undefined
   this.events = undefined
   this.collection = undefined
+  this.document = undefined
+  this.documents = undefined
   await this.store.disconnect()
 })
