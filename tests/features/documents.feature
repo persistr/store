@@ -51,10 +51,10 @@ Feature: Manage documents
     When I write document "{ id: 'c07a3419-ba38-4af1-b3c0-310d14851d2c', age: 45 }"
      And I write document "{ id: '0bf38966-c153-428d-a416-c6cea196f9c2', age: 15 }"
      And I write document "{ id: 'f2f037eb-b950-4a2a-8001-b43816328cfb', age: 55 }"
-     And I search for documents matching "{ age: { $gt: 40 } }"
+     And I search for documents matching "{ age: { $gt: 40 } }" in "desc" order of "age"
     Then I get 2 search results
-     And search result 2 is "{ id: 'f2f037eb-b950-4a2a-8001-b43816328cfb', age: 55 }"
-     And search result 1 is "{ id: 'c07a3419-ba38-4af1-b3c0-310d14851d2c', age: 45 }"
+     And search result 1 is "{ id: 'f2f037eb-b950-4a2a-8001-b43816328cfb', age: 55 }"
+     And search result 2 is "{ id: 'c07a3419-ba38-4af1-b3c0-310d14851d2c', age: 45 }"
 
   Scenario: Count documents
     Given a demo database
@@ -80,11 +80,11 @@ Feature: Manage documents
     When I write document "{ id: 'c07a3419-ba38-4af1-b3c0-310d14851d2c', title: 'abc123' }"
      And I write document "{ id: '0bf38966-c153-428d-a416-c6cea196f9c2', title: '123abc' }"
      And I write document "{ id: 'f2f037eb-b950-4a2a-8001-b43816328cfb', title: '123123' }"
-     And I search for documents matching "{ title: { $regex: '.*123.*' } }"
+     And I search for documents matching "{ title: { $regex: '.*123.*' } }" in "desc" order of "title"
     Then I get 3 search results
-#     And search result 1 is "{ id: 'c07a3419-ba38-4af1-b3c0-310d14851d2c', title: 'abc123' }"
-#     And search result 2 is "{ id: '0bf38966-c153-428d-a416-c6cea196f9c2', title: '123abc' }"
-#     And search result 3 is "{ id: 'f2f037eb-b950-4a2a-8001-b43816328cfb', title: '123123' }"
+     And search result 1 is "{ id: 'c07a3419-ba38-4af1-b3c0-310d14851d2c', title: 'abc123' }"
+     And search result 2 is "{ id: '0bf38966-c153-428d-a416-c6cea196f9c2', title: '123abc' }"
+     And search result 3 is "{ id: 'f2f037eb-b950-4a2a-8001-b43816328cfb', title: '123123' }"
 
   Scenario: Search for documents using regex, part 3
     Given a demo database
@@ -92,10 +92,10 @@ Feature: Manage documents
     When I write document "{ id: 'c07a3419-ba38-4af1-b3c0-310d14851d2c', title: 'abc123' }"
      And I write document "{ id: '0bf38966-c153-428d-a416-c6cea196f9c2', title: '123abc' }"
      And I write document "{ id: 'f2f037eb-b950-4a2a-8001-b43816328cfb', title: '123123' }"
-     And I search for documents matching "{ title: { $regex: '123.*' } }"
+     And I search for documents matching "{ title: { $regex: '123.*' } }" in "asc" order of "title"
     Then I get 2 search results
-     And search result 1 is "{ id: '0bf38966-c153-428d-a416-c6cea196f9c2', title: '123abc' }"
-     And search result 2 is "{ id: 'f2f037eb-b950-4a2a-8001-b43816328cfb', title: '123123' }"
+     And search result 1 is "{ id: 'f2f037eb-b950-4a2a-8001-b43816328cfb', title: '123123' }"
+     And search result 2 is "{ id: '0bf38966-c153-428d-a416-c6cea196f9c2', title: '123abc' }"
 
   Scenario: Search for documents using regex, part 4
     Given a demo database
@@ -103,7 +103,7 @@ Feature: Manage documents
     When I write document "{ id: 'c07a3419-ba38-4af1-b3c0-310d14851d2c', title: 'abc123' }"
      And I write document "{ id: '0bf38966-c153-428d-a416-c6cea196f9c2', title: '123abc' }"
      And I write document "{ id: 'f2f037eb-b950-4a2a-8001-b43816328cfb', title: '123123' }"
-     And I search for documents matching "{ title: { $regex: '1?3.*(c|3)' } }"
+     And I search for documents matching "{ title: { $regex: '1?3.*(c|3)' } }" in "desc" order of "title"
     Then I get 2 search results
      And search result 1 is "{ id: '0bf38966-c153-428d-a416-c6cea196f9c2', title: '123abc' }"
      And search result 2 is "{ id: 'f2f037eb-b950-4a2a-8001-b43816328cfb', title: '123123' }"

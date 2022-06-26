@@ -907,9 +907,9 @@ When('I search for documents matching {string} on page {int} with page size {int
   this.documents = await this.store.documents.find({ db: this.database.name, collection: this.collection, query, options: { skip: (page - 1) * size, limit: size }})
 })
 
-When('I search for documents matching {string} in descending order of {string}', async function (content, column) {
+When('I search for documents matching {string} in {string} order of {string}', async function (content, order, column) {
   const query = toObject(content)
-  this.documents = await this.store.documents.find({ db: this.database.name, collection: this.collection, query, options: { sort: { by: column, order: 'desc' }}})
+  this.documents = await this.store.documents.find({ db: this.database.name, collection: this.collection, query, options: { sort: { by: column, order }}})
 })
 
 Then('I try to read document with ID {string}', async function (id) {
