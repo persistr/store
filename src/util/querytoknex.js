@@ -35,7 +35,7 @@ const queryToKnex = ({ query, knex, parentKey, parentKnexMethodName, options }) 
   for (const key of Object.keys(query || {})) {
     let value = query[key]
 
-    if (isObject(value)) return queryToKnex({ query: value, knex, parentKey: key })
+    if (isObject(value)) return queryToKnex({ query: value, knex, parentKey: key, parentKnexMethodName })
 
     const knexMethodName = methods[key]
     if (knexMethodName) return queryByMethod(knex, key, value, knexMethodName)
