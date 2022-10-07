@@ -114,8 +114,8 @@ Scenario: Search for documents using regex, part 5
     When I write document "{ id: 'c07a3419-ba38-4af1-b3c0-310d14851d2c', name: 'demo1', title: 'abc123', status: 'Active' }"
      And I write document "{ id: '0bf38966-c153-428d-a416-c6cea196f9c2', name: 'test1', title: '123abc', status: 'Failed' }"
      And I write document "{ id: 'f2f037eb-b950-4a2a-8001-b43816328cfb', name: 'test2', title: '123123', status: 'Finished' }"
-     And I write document "{ id: 'simple-test-id', name: 'demo2', title: '123123', status: 'Finished' }"
+     And I write document "{ id: 'simple-test-id', name: 'demo2', title: '321321', status: 'Finished' }"
      And I search for documents matching "{'$and': [{'$or':[{name:{'$regex': '%test%'}},{id: {'$regex': '%test%'}}]},{'$or':[{status:'Finished'}]}]}" in "desc" order of "title"
     Then I get 2 search results
-     And search result 1 is "{ id: 'f2f037eb-b950-4a2a-8001-b43816328cfb', name: 'test2', title: '123123', status: 'Finished' }"
-     And search result 2 is "{ id: 'simple-test-id', name: 'demo2', title: '123123', status: 'Finished' }"
+     And search result 1 is "{ id: 'simple-test-id', name: 'demo2', title: '321321', status: 'Finished' }"
+     And search result 2 is "{ id: 'f2f037eb-b950-4a2a-8001-b43816328cfb', name: 'test2', title: '123123', status: 'Finished' }"
