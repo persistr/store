@@ -63,16 +63,20 @@ class Store extends EventEmitter {
         port: parsed.port,
         user: parsed.username,
         password: parsed.password,
-        database: parsed.pathname
+        pathname: parsed.pathname
       }
     }
 
     if (config.client === 'sqlite3') {
       config.useNullAsDefault = true
-      config.connection.filename = config.connection.database
+      config.connection.filename = config.connection.pathname
       if (config.connection.filename === 'memory') {
         config.connection.filename = ':memory:'
       }
+    }
+
+    if (config.client === 'mysql') {
+      config.connection.database = config.connection.pathname.substring(1)
     }
 
     this.knex = Knex(config)
