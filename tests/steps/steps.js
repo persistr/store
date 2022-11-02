@@ -29,7 +29,35 @@ const clear = async knex => {
 }
 
 Given('an empty database', async function () {
-  clear(this.knex)
+  clear(this.store.knex)
+})
+
+//
+// Connections
+//
+
+Given('a disconnected store', async function () {
+  if (this.cxn) {
+    await this.cxn.disconnect()
+    this.cxn = undefined
+  }
+})
+
+When('I try to connect to {string}', async function (connection_string) {
+  const cxn = await this.store.connect(connection_string, { hook: config => this.config = config })
+  assert(this.config)
+  assert(cxn === undefined)
+})
+
+Then('the client used is {string} and database is {string}', async function (client, db) {
+  assert.equal(this.config.client, client)
+  assert.equal(this.config.connection.database, db)
+})
+
+Then('the client used is {string}, database is {string}, and file name is {string}', async function (client, db, filename) {
+  assert.equal(this.config.client, client)
+  assert.equal(this.config.connection.database, db)
+  assert.equal(this.config.connection.filename, filename)
 })
 
 //
@@ -37,9 +65,9 @@ Given('an empty database', async function () {
 //
 
 Given('a demo account', async function () {
-  clear(this.knex)
+  clear(this.store.knex)
 
-  const account = await this.store.accounts.create({ username: 'demo', name: 'Demo Account', password: 'demo1234' })
+  const account = await this.cxn.accounts.create({ username: 'demo', name: 'Demo Account', password: 'demo1234' })
   assert.match(account.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
   assert.equal(account.username, 'demo')
   assert.equal(account.name, 'Demo Account')
@@ -50,7 +78,7 @@ Given('a demo account', async function () {
 
 When('I create an account with {string}, {string}, and {string}', async function (username, name, password) {
   try {
-    const account = await this.store.accounts.create({ username, name, password })
+    const account = await this.cxn.accounts.create({ username, name, password })
     assert.match(account.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
     assert.equal(account.username, username)
     assert.equal(account.name, name)
@@ -63,7 +91,7 @@ When('I create an account with {string}, {string}, and {string}', async function
 
 When('I destroy account {string}', async function (username) {
   try {
-    await this.store.accounts.destroy({ username })
+    await this.cxn.accounts.destroy({ username })
   }
   catch (error) {
     this.error = error
@@ -72,7 +100,7 @@ When('I destroy account {string}', async function (username) {
 
 When('I deactivate account {string}', async function (username) {
   try {
-    await this.store.accounts.deactivate({ username })
+    await this.cxn.accounts.deactivate({ username })
   }
   catch (error) {
     this.error = error
@@ -81,7 +109,7 @@ When('I deactivate account {string}', async function (username) {
 
 When('I reactivate account {string}', async function (username) {
   try {
-    await this.store.accounts.activate({ username })
+    await this.cxn.accounts.activate({ username })
   }
   catch (error) {
     this.error = error
@@ -89,15 +117,15 @@ When('I reactivate account {string}', async function (username) {
 })
 
 When('I grant {string} access to database {string} for account {string}', async function (role, db, username) {
-  await this.store.accounts.grant({ db, role, username, account: this.account.id })
+  await this.cxn.accounts.grant({ db, role, username, account: this.account.id })
 })
 
 When('I revoke access to database {string} for account {string}', async function (db, username) {
-  await this.store.accounts.revoke({ db, username, account: this.account.id })
+  await this.cxn.accounts.revoke({ db, username, account: this.account.id })
 })
 
 Then('I can confirm that there are {int} accounts available', async function (count) {
-  const accounts = await this.store.accounts.find()
+  const accounts = await this.cxn.accounts.find()
   assert.equal(accounts.length, count)
   for (const account of accounts) {
     assert.match(account.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
@@ -107,13 +135,13 @@ Then('I can confirm that there are {int} accounts available', async function (co
 })
 
 Then('I can confirm that account exists with {string}, {string}, and {string}', async function (username, name, password) {
-  const account = await this.store.accounts.find({ username, password })
+  const account = await this.cxn.accounts.find({ username, password })
   assert.match(account.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
   assert.equal(account.username, username)
   assert.equal(account.name, name)
   assert.equal(account.dbs.length, 0)
 
-  const account2 = await this.store.accounts.find({ id: account.id })
+  const account2 = await this.cxn.accounts.find({ id: account.id })
   assert.equal(account2.id, account.id)
   assert.equal(account2.username, username)
   assert.equal(account2.name, name)
@@ -121,22 +149,22 @@ Then('I can confirm that account exists with {string}, {string}, and {string}', 
 })
 
 Then('I can confirm that account {string} is retrievable via its API key', async function (username) {
-  const account = await this.store.accounts.find({ username })
+  const account = await this.cxn.accounts.find({ username })
   assert.match(account.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
   assert.equal(account.username, username)
 
-  const account2 = await this.store.accounts.find({ id: account.id, key: account.key })
+  const account2 = await this.cxn.accounts.find({ id: account.id, key: account.key })
   assert.equal(account2.id, account.id)
   assert.equal(account2.username, username)
   assert.equal(account2.name, account.name)
 })
 
 Then('I can confirm that account {string} is retrievable via its unique ID', async function (username) {
-  const account = await this.store.accounts.find({ username })
+  const account = await this.cxn.accounts.find({ username })
   assert.match(account.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
   assert.equal(account.username, username)
 
-  const account2 = await this.store.accounts.find({ id: account.id })
+  const account2 = await this.cxn.accounts.find({ id: account.id })
   assert.equal(account2.id, account.id)
   assert.equal(account2.username, username)
   assert.equal(account2.name, account.name)
@@ -145,7 +173,7 @@ Then('I can confirm that account {string} is retrievable via its unique ID', asy
 Then("I can't find an active account with {string}", async function (username) {
   let exists = true
   try {
-    const account = await this.store.accounts.find({ username })
+    const account = await this.cxn.accounts.find({ username })
   }
   catch (error) {
     if (error instanceof AccountNotFound) {
@@ -158,7 +186,7 @@ Then("I can't find an active account with {string}", async function (username) {
 Then("I can't find account with ID {string}", async function (id) {
   let exists = true
   try {
-    const account = await this.store.accounts.find({ id })
+    const account = await this.cxn.accounts.find({ id })
   }
   catch (error) {
     if (error instanceof AccountNotFound) {
@@ -169,10 +197,10 @@ Then("I can't find account with ID {string}", async function (id) {
 })
 
 Then("I can't find account {string} with API key {string}", async function (username, key) {
-  const account = await this.store.accounts.find({ username })
+  const account = await this.cxn.accounts.find({ username })
   let exists = true
   try {
-    const account2 = await this.store.accounts.find({ id: account.id, key })
+    const account2 = await this.cxn.accounts.find({ id: account.id, key })
   }
   catch (error) {
     if (error instanceof AccountNotFound) {
@@ -185,7 +213,7 @@ Then("I can't find account {string} with API key {string}", async function (user
 Then("I can't find account {string} with password {string}", async function (username, password) {
   let exists = true
   try {
-    const account = await this.store.accounts.find({ username, password })
+    const account = await this.cxn.accounts.find({ username, password })
   }
   catch (error) {
     if (error instanceof AccountNotFound) {
@@ -196,7 +224,7 @@ Then("I can't find account {string} with password {string}", async function (use
 })
 
 Then('I can confirm that account {string} has {string} access to database {string}', async function (username, role, db) {
-  const account = await this.store.accounts.find({ username })
+  const account = await this.cxn.accounts.find({ username })
   assert.match(account.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
   assert.equal(account.username, username)
   assert(account.dbs.length >= 1)
@@ -209,7 +237,7 @@ Then('I can confirm that account {string} has {string} access to database {strin
   }
   assert(found)
 
-  const account2 = await this.store.accounts.find({ id: account.id })
+  const account2 = await this.cxn.accounts.find({ id: account.id })
   assert.equal(account2.id, account.id)
   assert.equal(account2.username, username)
   assert.equal(account2.name, account.name)
@@ -225,7 +253,7 @@ Then('I can confirm that account {string} has {string} access to database {strin
 })
 
 Then('I can confirm that account {string} does NOT have access to database {string}', async function (username, db) {
-  const account = await this.store.accounts.find({ username })
+  const account = await this.cxn.accounts.find({ username })
   assert.match(account.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
   assert.equal(account.username, username)
   let found = false
@@ -237,7 +265,7 @@ Then('I can confirm that account {string} does NOT have access to database {stri
   }
   assert(!found)
 
-  const account2 = await this.store.accounts.find({ id: account.id })
+  const account2 = await this.cxn.accounts.find({ id: account.id })
   assert.equal(account2.id, account.id)
   assert.equal(account2.username, username)
   assert.equal(account2.name, account.name)
@@ -253,7 +281,7 @@ Then('I can confirm that account {string} does NOT have access to database {stri
 
 Then('I can confirm that account {string} is not a root account', async function (username) {
   try {
-    const account = await this.store.accounts.find({ username })
+    const account = await this.cxn.accounts.find({ username })
     assert.match(account.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
     assert.equal(account.username, username)
     assert(!account.isRoot)
@@ -278,16 +306,16 @@ Then('I get a username taken error', async function () {
 //
 
 Given('a demo database', async function () {
-  clear(this.knex)
+  clear(this.store.knex)
 
-  const account = await this.store.accounts.create({ username: 'demo', name: 'Demo Account', password: 'demo1234' })
+  const account = await this.cxn.accounts.create({ username: 'demo', name: 'Demo Account', password: 'demo1234' })
   assert.match(account.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
   assert.equal(account.username, 'demo')
   assert.equal(account.name, 'Demo Account')
   assert.equal(account.dbs.length, 0)
   this.account = account
 
-  const database = await this.store.databases.create({ name: 'demo', account: this.account.id })
+  const database = await this.cxn.databases.create({ name: 'demo', account: this.account.id })
   assert.match(database.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
   assert.equal(database.name, 'demo')
   assert.equal(database.account.id, this.account.id)
@@ -296,7 +324,7 @@ Given('a demo database', async function () {
 
 When('I create database {string}', async function (database) {
   try {
-    const db = await this.store.databases.create({ name: database, account: this.account.id })
+    const db = await this.cxn.databases.create({ name: database, account: this.account.id })
   }
   catch (error) {
     this.error = error
@@ -304,12 +332,12 @@ When('I create database {string}', async function (database) {
 })
 
 When('I destroy database {string}', async function (database) {
-  await this.store.databases.destroy({ name: database, account: this.account.id })
+  await this.cxn.databases.destroy({ name: database, account: this.account.id })
 })
 
 When('I rename database {string} to {string}', async function (oldName, newName) {
   try {
-    await this.store.databases.rename({ name: oldName, to: newName, account: this.account.id })
+    await this.cxn.databases.rename({ name: oldName, to: newName, account: this.account.id })
   }
   catch (error) {
     this.error = error
@@ -317,7 +345,7 @@ When('I rename database {string} to {string}', async function (oldName, newName)
 })
 
 Then('I can confirm that there are {int} databases available', async function (count) {
-  const databases = await this.store.databases.find({ account: this.account.id })
+  const databases = await this.cxn.databases.find({ account: this.account.id })
   assert.equal(databases.length, count)
   for (const db of databases) {
     assert.match(db.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
@@ -326,10 +354,10 @@ Then('I can confirm that there are {int} databases available', async function (c
 })
 
 Then('I can confirm that database {string} exists', async function (database) {
-  const db = await this.store.databases.find({ name: database, account: this.account.id })
+  const db = await this.cxn.databases.find({ name: database, account: this.account.id })
   assert.match(db.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
 
-  const db2 = await this.store.databases.find({ name: database })
+  const db2 = await this.cxn.databases.find({ name: database })
   assert.match(db2.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
   assert.equal(db.id, db2.id)
 })
@@ -337,7 +365,7 @@ Then('I can confirm that database {string} exists', async function (database) {
 Then("I can't find database {string}", async function (database) {
   let exists = true
   try {
-    const db = await this.store.databases.find({ name: database, account: this.account.id })
+    const db = await this.cxn.databases.find({ name: database, account: this.account.id })
   }
   catch (error) {
     if (error instanceof DatabaseNotFound) {
@@ -348,7 +376,7 @@ Then("I can't find database {string}", async function (database) {
 
   exists = true
   try {
-    const db = await this.store.databases.find({ name: database })
+    const db = await this.cxn.databases.find({ name: database })
   }
   catch (error) {
     if (error instanceof DatabaseNotFound) {
@@ -373,22 +401,22 @@ Then('I get a duplicate database error', async function () {
 //
 
 Given('a demo namespace', async function () {
-  clear(this.knex)
+  clear(this.store.knex)
 
-  const account = await this.store.accounts.create({ username: 'demo', name: 'Demo Account', password: 'demo1234' })
+  const account = await this.cxn.accounts.create({ username: 'demo', name: 'Demo Account', password: 'demo1234' })
   assert.match(account.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
   assert.equal(account.username, 'demo')
   assert.equal(account.name, 'Demo Account')
   assert.equal(account.dbs.length, 0)
   this.account = account
 
-  const database = await this.store.databases.create({ name: 'demo', account: this.account.id })
+  const database = await this.cxn.databases.create({ name: 'demo', account: this.account.id })
   assert.match(database.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
   assert.equal(database.name, 'demo')
   assert.equal(database.account.id, this.account.id)
   this.database = database
 
-  const namespace = await this.store.namespaces.create({ name: 'demo', db: 'demo', account: this.account.id })
+  const namespace = await this.cxn.namespaces.create({ name: 'demo', db: 'demo', account: this.account.id })
   assert.match(namespace.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
   assert.equal(namespace.name, 'demo')
   assert.equal(namespace.account.id, this.account.id)
@@ -401,7 +429,7 @@ Given('default namespace', async function () {
 
 When('I create namespace {string}', async function (name) {
   try {
-    const namespace = await this.store.namespaces.create({ name: name, db: this.database.name, account: this.account.id })
+    const namespace = await this.cxn.namespaces.create({ name: name, db: this.database.name, account: this.account.id })
   }
   catch (error) {
     this.error = error
@@ -409,12 +437,12 @@ When('I create namespace {string}', async function (name) {
 })
 
 When('I destroy namespace {string}', async function (name) {
-  await this.store.namespaces.destroy({ name, db: this.database.name, account: this.account.id })
+  await this.cxn.namespaces.destroy({ name, db: this.database.name, account: this.account.id })
 })
 
 When('I rename namespace {string} to {string}', async function (oldName, newName) {
   try {
-    await this.store.namespaces.rename({ db: this.database.name, name: oldName, to: newName, account: this.account.id })
+    await this.cxn.namespaces.rename({ db: this.database.name, name: oldName, to: newName, account: this.account.id })
   }
   catch (error) {
     this.error = error
@@ -422,11 +450,11 @@ When('I rename namespace {string} to {string}', async function (oldName, newName
 })
 
 When('I truncate namespace {string}', async function (name) {
-  await this.store.namespaces.truncate({ name, db: this.database.name, account: this.account.id })
+  await this.cxn.namespaces.truncate({ name, db: this.database.name, account: this.account.id })
 })
 
 Then('I can confirm that there are {int} namespaces available', async function (count) {
-  const namespaces = await this.store.namespaces.find({ db: this.database.name })
+  const namespaces = await this.cxn.namespaces.find({ db: this.database.name })
   assert.equal(namespaces.length, count)
   for (const ns of namespaces) {
     assert.match(ns.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
@@ -437,7 +465,7 @@ Then('I can confirm that there are {int} namespaces available', async function (
 })
 
 Then('I can confirm that namespace {string} exists', async function (name) {
-  const ns = await this.store.namespaces.find({ name, dbID: this.database.id })
+  const ns = await this.cxn.namespaces.find({ name, dbID: this.database.id })
   assert.match(ns.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
   assert.equal(ns.name, name)
 })
@@ -445,7 +473,7 @@ Then('I can confirm that namespace {string} exists', async function (name) {
 Then("I can't find namespace {string}", async function (name) {
   let exists = true
   try {
-    const ns = await this.store.namespaces.find({ name, dbID: this.database.id })
+    const ns = await this.cxn.namespaces.find({ name, dbID: this.database.id })
   }
   catch (error) {
     if (error instanceof NamespaceNotFound) {
@@ -470,21 +498,21 @@ Then('I get a duplicate namespace error', async function () {
 //
 
 When('I write object {string} with ID {string}', async function (content, id) {
-  await this.store.objects.write({ db: this.database.name, id, data: toObject(content) })
+  await this.cxn.objects.write({ db: this.database.name, id, data: toObject(content) })
 })
 
 When('I try to read content of object {string}', async function (id) {
-  const object = await this.store.objects.read({ db: this.database.name, id })
+  const object = await this.cxn.objects.read({ db: this.database.name, id })
   if (!object) this.error = new ObjectNotFound()
 })
 
 When('I destroy object {string}', async function (id) {
-  await this.store.objects.destroy({ db: this.database.name, id })
+  await this.cxn.objects.destroy({ db: this.database.name, id })
 })
 
 When('I try to destroy object {string}', async function (id) {
   try {
-    await this.store.objects.destroy({ db: this.database.name, id })
+    await this.cxn.objects.destroy({ db: this.database.name, id })
   }
   catch (error) {
     this.error = error
@@ -492,17 +520,17 @@ When('I try to destroy object {string}', async function (id) {
 })
 
 Then('I can confirm that object {string} exists', async function (id) {
-  const object = await this.store.objects.read({ db: this.database.name, id })
+  const object = await this.cxn.objects.read({ db: this.database.name, id })
   assert(object)
 })
 
 Then('I can confirm that content of object {string} is {string}', async function (id, content) {
-  const object = await this.store.objects.read({ db: this.database.name, id })
+  const object = await this.cxn.objects.read({ db: this.database.name, id })
   assert.deepStrictEqual(object, toObject(content))
 })
 
 Then("I can't find object {string}", async function (id) {
-  const object = await this.store.objects.read({ db: this.database.name, id })
+  const object = await this.cxn.objects.read({ db: this.database.name, id })
   assert.equal(object, null)
 })
 
@@ -520,22 +548,22 @@ Given('stream with ID {string}', async function (stream) {
 })
 
 Given('a demo stream', async function () {
-  clear(this.knex)
+  clear(this.store.knex)
 
-  const account = await this.store.accounts.create({ username: 'demo', name: 'Demo Account', password: 'demo1234' })
+  const account = await this.cxn.accounts.create({ username: 'demo', name: 'Demo Account', password: 'demo1234' })
   assert.match(account.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
   assert.equal(account.username, 'demo')
   assert.equal(account.name, 'Demo Account')
   assert.equal(account.dbs.length, 0)
   this.account = account
 
-  const database = await this.store.databases.create({ name: 'demo', account: this.account.id })
+  const database = await this.cxn.databases.create({ name: 'demo', account: this.account.id })
   assert.match(database.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
   assert.equal(database.name, 'demo')
   assert.equal(database.account.id, this.account.id)
   this.database = database
 
-  const namespace = await this.store.namespaces.create({ name: 'demo', db: 'demo', account: this.account.id })
+  const namespace = await this.cxn.namespaces.create({ name: 'demo', db: 'demo', account: this.account.id })
   assert.match(namespace.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
   assert.equal(namespace.name, 'demo')
   assert.equal(namespace.account.id, this.account.id)
@@ -544,12 +572,12 @@ Given('a demo stream', async function () {
   this.stream = 'ac9a0d2c-619f-47f8-8510-52429f4f0680'
 
   const event = { data: { hello: 'world' }, meta: { id: '26d4211d-1df4-468f-af24-96cc9e9a2e27', type: 'test', stream: this.stream, db: this.database.name, ns: this.namespace.name }}
-  await this.store.events.write(event)
+  await this.cxn.events.write(event)
 })
 
 When('I try to read stream {string}', async function (id) {
   try {
-    const stream = await this.store.streams.read({ db: this.database.name, ns: this.namespace.name, id })
+    const stream = await this.cxn.streams.read({ db: this.database.name, ns: this.namespace.name, id })
   }
   catch (error) {
     this.error = error
@@ -557,12 +585,12 @@ When('I try to read stream {string}', async function (id) {
 })
 
 When('I destroy stream {string}', async function (id) {
-  await this.store.streams.destroy({ db: this.database.name, ns: this.namespace.name, id, account: this.account.id })
+  await this.cxn.streams.destroy({ db: this.database.name, ns: this.namespace.name, id, account: this.account.id })
 })
 
 When('I try to destroy stream {string}', async function (id) {
   try {
-    await this.store.streams.destroy({ db: this.database.name, ns: this.namespace.name, id, account: this.account.id })
+    await this.cxn.streams.destroy({ db: this.database.name, ns: this.namespace.name, id, account: this.account.id })
   }
   catch (error) {
     this.error = error
@@ -570,7 +598,7 @@ When('I try to destroy stream {string}', async function (id) {
 })
 
 Then('I can confirm that there are {int} streams available', async function (count) {
-  const streams = await this.store.streams.find({ db: this.database.name })
+  const streams = await this.cxn.streams.find({ db: this.database.name })
   assert.equal(streams.length, count)
   for (const stream of streams) {
     assert.match(stream.id, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i)
@@ -580,13 +608,13 @@ Then('I can confirm that there are {int} streams available', async function (cou
     assert(stream.size >= 1)
   }
 
-  const streams2 = await this.store.streams.find({ db: this.database.name, ns: this.namespace.name })
+  const streams2 = await this.cxn.streams.find({ db: this.database.name, ns: this.namespace.name })
   assert.equal(streams2.length, count)
   assert.deepStrictEqual(streams, streams2)
 })
 
 Then('I can confirm that stream {string} exists', async function (id) {
-  const stream = await this.store.streams.read({ db: this.database.name, ns: this.namespace.name, id })
+  const stream = await this.cxn.streams.read({ db: this.database.name, ns: this.namespace.name, id })
   assert(stream)
   assert.equal(stream.id, id)
   assert.equal(stream.ns, this.namespace.name)
@@ -596,13 +624,13 @@ Then('I can confirm that stream {string} exists', async function (id) {
 })
 
 Then('I can confirm that stream type is undefined', async function () {
-  const stream = await this.store.streams.read({ db: this.database.name, ns: this.namespace.name, id: this.stream })
+  const stream = await this.cxn.streams.read({ db: this.database.name, ns: this.namespace.name, id: this.stream })
   assert(stream)
   assert(stream.type === undefined)
 })
 
 Then('I can confirm that stream type is {string}', async function (type) {
-  const stream = await this.store.streams.read({ db: this.database.name, ns: this.namespace.name, id: this.stream })
+  const stream = await this.cxn.streams.read({ db: this.database.name, ns: this.namespace.name, id: this.stream })
   assert(stream)
   assert.equal(stream.type, type)
 })
@@ -618,23 +646,23 @@ Then('I get a stream not found error', async function () {
 
 When('I write event {string} with ID {string} and type {string} to stream {string} in namespace {string}', async function (content, id, type, stream, ns) {
   const event = { data: toObject(content), meta: { id, type, stream, db: this.database.name, ns }}
-  await this.store.events.write(event)
+  await this.cxn.events.write(event)
 })
 
 When('I write event {string} with ID {string} and type {string} to stream {string}', async function (content, id, type, stream) {
   const event = { data: toObject(content), meta: { id, type, stream, db: this.database.name, ns: this?.namespace?.name ?? '' }}
-  await this.store.events.write(event)
+  await this.cxn.events.write(event)
 })
 
 When('I write event {string} with ID {string} and type {string}', async function (content, id, type) {
   const event = { data: toObject(content), meta: { id, type, stream: this.stream, db: this.database.name, ns: this?.namespace?.name ?? '' }}
-  await this.store.events.write(event)
+  await this.cxn.events.write(event)
 })
 
 When('I try to write event {string} with ID {string} and type {string}', async function (content, id, type) {
   try {
     const event = { data: toObject(content), meta: { id, type, stream: this.stream, db: this.database.name, ns: this?.namespace?.name ?? '' }}
-    await this.store.events.write(event)
+    await this.cxn.events.write(event)
   }
   catch (error) {
     this.error = error
@@ -643,12 +671,12 @@ When('I try to write event {string} with ID {string} and type {string}', async f
 
 When('I write event with ID {string} and type {string}', async function (id, type) {
   const event = { meta: { id, type, stream: this.stream, db: this.database.name, ns: this?.namespace?.name ?? '' }}
-  await this.store.events.write(event)
+  await this.cxn.events.write(event)
 })
 
 When('I try to read content of event with ID {string}', async function (id) {
   try {
-    const event = await this.store.events.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, event: id })
+    const event = await this.cxn.events.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, event: id })
   }
   catch (error) {
     this.error = error
@@ -656,12 +684,12 @@ When('I try to read content of event with ID {string}', async function (id) {
 })
 
 When('I destroy event with ID {string}', async function (id) {
-  await this.store.events.destroy({ db: this.database.name, ns: this.namespace.name, stream: this.stream, event: id })
+  await this.cxn.events.destroy({ db: this.database.name, ns: this.namespace.name, stream: this.stream, event: id })
 })
 
 When('I try to destroy event with ID {string}', async function (id) {
   try {
-    await this.store.events.destroy({ db: this.database.name, ns: this.namespace.name, stream: this.stream, event: id })
+    await this.cxn.events.destroy({ db: this.database.name, ns: this.namespace.name, stream: this.stream, event: id })
   }
   catch (error) {
     this.error = error
@@ -669,19 +697,19 @@ When('I try to destroy event with ID {string}', async function (id) {
 })
 
 When('I search for events after event with ID {string}', async function (id) {
-  const event = await this.store.events.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, event: id })
+  const event = await this.cxn.events.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, event: id })
   assert(event)
-  const events = await this.store.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, after: event.meta.ts })
-  const events2 = await this.store.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, after: event.meta.id })
+  const events = await this.cxn.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, after: event.meta.ts })
+  const events2 = await this.cxn.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, after: event.meta.id })
   assert.deepStrictEqual(events, events2)
-  const events3 = await this.store.events.find({ db: this.database.name, ns: this.namespace.name, after: `${this.stream}.${event.meta.id}` })
+  const events3 = await this.cxn.events.find({ db: this.database.name, ns: this.namespace.name, after: `${this.stream}.${event.meta.id}` })
   assert.deepStrictEqual(events, events3)
   this.events = events
 })
 
 When('I try to search for events after event with ID {string}', async function (id) {
   try {
-    const events = await this.store.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, after: id })
+    const events = await this.cxn.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, after: id })
   }
   catch (error) {
     this.error = error
@@ -689,19 +717,19 @@ When('I try to search for events after event with ID {string}', async function (
 })
 
 When('I search for events starting from event with ID {string}', async function (id) {
-  const event = await this.store.events.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, event: id })
+  const event = await this.cxn.events.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, event: id })
   assert(event)
-  const events = await this.store.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, from: event.meta.ts })
-  const events2 = await this.store.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, from: event.meta.id })
+  const events = await this.cxn.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, from: event.meta.ts })
+  const events2 = await this.cxn.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, from: event.meta.id })
   assert.deepStrictEqual(events, events2)
-  const events3 = await this.store.events.find({ db: this.database.name, ns: this.namespace.name, from: `${this.stream}.${event.meta.id}` })
+  const events3 = await this.cxn.events.find({ db: this.database.name, ns: this.namespace.name, from: `${this.stream}.${event.meta.id}` })
   assert.deepStrictEqual(events, events3)
   this.events = events
 })
 
 When('I try to search for events starting from event with ID {string}', async function (id) {
   try {
-    const events = await this.store.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, from: id })
+    const events = await this.cxn.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, from: id })
   }
   catch (error) {
     this.error = error
@@ -709,19 +737,19 @@ When('I try to search for events starting from event with ID {string}', async fu
 })
 
 When('I search for events until event with ID {string}', async function (id) {
-  const event = await this.store.events.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, event: id })
+  const event = await this.cxn.events.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, event: id })
   assert(event)
-  const events = await this.store.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, until: event.meta.ts })
-  const events2 = await this.store.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, until: event.meta.id })
+  const events = await this.cxn.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, until: event.meta.ts })
+  const events2 = await this.cxn.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, until: event.meta.id })
   assert.deepStrictEqual(events, events2)
-  const events3 = await this.store.events.find({ db: this.database.name, ns: this.namespace.name, until: `${this.stream}.${event.meta.id}` })
+  const events3 = await this.cxn.events.find({ db: this.database.name, ns: this.namespace.name, until: `${this.stream}.${event.meta.id}` })
   assert.deepStrictEqual(events, events3)
   this.events = events
 })
 
 When('I try to search for events until event with ID {string}', async function (id) {
   try {
-    const events = await this.store.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, until: id })
+    const events = await this.cxn.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, until: id })
   }
   catch (error) {
     this.error = error
@@ -729,19 +757,19 @@ When('I try to search for events until event with ID {string}', async function (
 })
 
 When('I search for events ending on event with ID {string}', async function (id) {
-  const event = await this.store.events.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, event: id })
+  const event = await this.cxn.events.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, event: id })
   assert(event)
-  const events = await this.store.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, to: event.meta.ts })
-  const events2 = await this.store.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, to: event.meta.id })
+  const events = await this.cxn.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, to: event.meta.ts })
+  const events2 = await this.cxn.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, to: event.meta.id })
   assert.deepStrictEqual(events, events2)
-  const events3 = await this.store.events.find({ db: this.database.name, ns: this.namespace.name, to: `${this.stream}.${event.meta.id}` })
+  const events3 = await this.cxn.events.find({ db: this.database.name, ns: this.namespace.name, to: `${this.stream}.${event.meta.id}` })
   assert.deepStrictEqual(events, events3)
   this.events = events
 })
 
 When('I try to search for events ending on event with ID {string}', async function (id) {
   try {
-    const events = await this.store.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, to: id })
+    const events = await this.cxn.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, to: id })
   }
   catch (error) {
     this.error = error
@@ -749,28 +777,28 @@ When('I try to search for events ending on event with ID {string}', async functi
 })
 
 When('I search for events matching type {string}', async function (type) {
-  const events = await this.store.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, types: type })
+  const events = await this.cxn.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, types: type })
   this.events = events
 })
 
 When('I search for events matching type {string} or type {string} with a limit of {int}', async function (type1, type2, limit) {
-  const events = await this.store.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, types: [ type1, type2 ], limit })
+  const events = await this.cxn.events.find({ db: this.database.name, ns: this.namespace.name, stream: this.stream, types: [ type1, type2 ], limit })
   this.events = events
 })
 
 When('I search for events matching type {string} in namespace {string}', async function (type, ns) {
-  const events = await this.store.events.find({ db: this.database.name, ns, types: [ type ] })
+  const events = await this.cxn.events.find({ db: this.database.name, ns, types: [ type ] })
   this.events = events
 })
 
 When('I search for events matching type {string} in database {string}', async function (type, db) {
-  const events = await this.store.events.find({ db, types: [ type ] })
+  const events = await this.cxn.events.find({ db, types: [ type ] })
   this.events = events
 })
 
 When('I subscribe to {int} events matching type {string} in database {string}', async function (limit, type, db) {
   this.events = []
-  await this.store.events.find({ db, types: [ type ], limit, callback: event => this.events.push(event) })
+  await this.cxn.events.find({ db, types: [ type ], limit, callback: event => this.events.push(event) })
 })
 
 Then('I expect to get {int} search results', async function (count) {
@@ -789,12 +817,12 @@ Then('I expect search result {int} to be event with ID {string}', async function
 })
 
 Then('I can confirm that event with ID {string} exists', async function (id) {
-  const event = await this.store.events.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, event: id })
+  const event = await this.cxn.events.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, event: id })
   assert(event)
 })
 
 Then('I can confirm that content of event with ID {string} is {string}', async function (id, content) {
-  const event = await this.store.events.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, event: id })
+  const event = await this.cxn.events.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, event: id })
   assert(event)
   assert.equal(event.meta.id, id)
   assert.equal(event.meta.stream, this.stream)
@@ -804,7 +832,7 @@ Then('I can confirm that content of event with ID {string} is {string}', async f
 Then("I can't find event with ID {string}", async function (id) {
   let exists = true
   try {
-    const event = await this.store.events.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, event: id })
+    const event = await this.cxn.events.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, event: id })
   }
   catch (error) {
     if (error instanceof EventNotFound) {
@@ -830,12 +858,12 @@ Then('I get a duplicate event error', async function () {
 
 When('I write annotation {string}', async function (content) {
   const annotation = toObject(content)
-  await this.store.annotations.write({ db: this.database.name, ns: this.namespace.name, stream: this.stream, annotation, account: this.account.id })
+  await this.cxn.annotations.write({ db: this.database.name, ns: this.namespace.name, stream: this.stream, annotation, account: this.account.id })
 })
 
 Then('I try to read annotation', async function () {
   try {
-    const annotation = await this.store.annotations.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, account: this.account.id })
+    const annotation = await this.cxn.annotations.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, account: this.account.id })
   }
   catch (error) {
     this.error = error
@@ -843,12 +871,12 @@ Then('I try to read annotation', async function () {
 })
 
 When('I destroy annotation', async function () {
-  await this.store.annotations.destroy({ db: this.database.name, ns: this.namespace.name, stream: this.stream, account: this.account.id })
+  await this.cxn.annotations.destroy({ db: this.database.name, ns: this.namespace.name, stream: this.stream, account: this.account.id })
 })
 
 When('I try to destroy annotation', async function () {
   try {
-    await this.store.annotations.destroy({ db: this.database.name, ns: this.namespace.name, stream: this.stream, account: this.account.id })
+    await this.cxn.annotations.destroy({ db: this.database.name, ns: this.namespace.name, stream: this.stream, account: this.account.id })
   }
   catch (error) {
     this.error = error
@@ -856,12 +884,12 @@ When('I try to destroy annotation', async function () {
 })
 
 Then('I can confirm that annotation exists', async function () {
-  const annotation = await this.store.annotations.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, account: this.account.id })
+  const annotation = await this.cxn.annotations.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, account: this.account.id })
   assert(annotation)
 })
 
 Then('I can confirm that content of annotation is {string}', async function (content) {
-  const annotation = await this.store.annotations.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, account: this.account.id })
+  const annotation = await this.cxn.annotations.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, account: this.account.id })
   assert(annotation)
   assert.deepStrictEqual(annotation, toObject(content))
 })
@@ -869,7 +897,7 @@ Then('I can confirm that content of annotation is {string}', async function (con
 Then("I can't find annotation", async function () {
   let exists = true
   try {
-    const annotation = await this.store.annotations.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, account: this.account.id })
+    const annotation = await this.cxn.annotations.read({ db: this.database.name, ns: this.namespace.name, stream: this.stream, account: this.account.id })
   }
   catch (error) {
     if (error instanceof AnnotationNotFound) {
@@ -894,36 +922,36 @@ Given('collection {string}', async function (collection) {
 
 When('I write document {string}', async function (content) {
   const doc = toObject(content)
-  this.document = await this.store.documents.write({ db: this.database.name, collection: this.collection, doc })
+  this.document = await this.cxn.documents.write({ db: this.database.name, collection: this.collection, doc })
 })
 
 When('I search for documents matching {string}', async function (content) {
   const query = toObject(content)
-  this.documents = await this.store.documents.find({ db: this.database.name, collection: this.collection, query })
+  this.documents = await this.cxn.documents.find({ db: this.database.name, collection: this.collection, query })
 })
 
 When('I search for documents matching {string} on page {int} with page size {int}', async function (content, page, size) {
   const query = toObject(content)
-  this.documents = await this.store.documents.find({ db: this.database.name, collection: this.collection, query, options: { skip: (page - 1) * size, limit: size }})
+  this.documents = await this.cxn.documents.find({ db: this.database.name, collection: this.collection, query, options: { skip: (page - 1) * size, limit: size }})
 })
 
 When('I search for documents matching {string} in {string} order of {string}', async function (content, order, column) {
   const query = toObject(content)
-  this.documents = await this.store.documents.find({ db: this.database.name, collection: this.collection, query, options: { sort: { by: column, order }}})
+  this.documents = await this.cxn.documents.find({ db: this.database.name, collection: this.collection, query, options: { sort: { by: column, order }}})
 })
 
 Then('I try to read document with ID {string}', async function (id) {
-  const doc = await this.store.documents.read({ db: this.database.name, collection: this.collection, id })
+  const doc = await this.cxn.documents.read({ db: this.database.name, collection: this.collection, id })
   this.error = new DocumentNotFound(this.database.name, this.collection, id)
 })
 
 When('I destroy the document', async function () {
-  await this.store.documents.destroy({ db: this.database.name, collection: this.collection, id: this.document.id })
+  await this.cxn.documents.destroy({ db: this.database.name, collection: this.collection, id: this.document.id })
 })
 
 When('I try to destroy document with ID {string}', async function (id) {
   try {
-    await this.store.documents.destroy({ db: this.database.name, collection: this.collection, id })
+    await this.cxn.documents.destroy({ db: this.database.name, collection: this.collection, id })
   }
   catch (error) {
     this.error = error
@@ -931,13 +959,13 @@ When('I try to destroy document with ID {string}', async function (id) {
 })
 
 Then('I can confirm that content of document with ID {string} is {string}', async function (id, content) {
-  const doc = await this.store.documents.read({ db: this.database.name, collection: this.collection, id })
+  const doc = await this.cxn.documents.read({ db: this.database.name, collection: this.collection, id })
   assert(doc)
   assert.deepStrictEqual(doc, toObject(content))
 })
 
 Then("I can't find the document", async function () {
-  const doc = await this.store.documents.read({ db: this.database.name, collection: this.collection, id: this.document.id })
+  const doc = await this.cxn.documents.read({ db: this.database.name, collection: this.collection, id: this.document.id })
   assert(!doc)
 })
 
@@ -947,17 +975,17 @@ Then('I get a document not found error', async function () {
 })
 
 Then('I count {int} documents', async function (count) {
-  assert.equal(count, await this.store.documents.count({ db: this.database.name, collection: this.collection }))
+  assert.equal(count, await this.cxn.documents.count({ db: this.database.name, collection: this.collection }))
 })
 
 Then('I count {int} documents matching {string}', async function (count, content) {
   const query = toObject(content)
-  assert.equal(count, await this.store.documents.count({ db: this.database.name, collection: this.collection, query }))
+  assert.equal(count, await this.cxn.documents.count({ db: this.database.name, collection: this.collection, query }))
 })
 
 Then('I count {int} document matching {string}', async function (count, content) {
   const query = toObject(content)
-  assert.equal(count, await this.store.documents.count({ db: this.database.name, collection: this.collection, query }))
+  assert.equal(count, await this.cxn.documents.count({ db: this.database.name, collection: this.collection, query }))
 })
 
 Then('I get {int} search result', async function (count) {

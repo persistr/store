@@ -1,4 +1,5 @@
 const EventEmitter = require('events')
+const path = require('node:path')
 const crypto = require('@persistr/server-crypto')
 const entities = require('./entities')
 const Knex = require('knex')
@@ -63,17 +64,21 @@ class Store extends EventEmitter {
         port: parsed.port,
         user: parsed.username,
         password: parsed.password,
-        database: parsed.pathname
+        filename: parsed.pathname,
+        database: path.parse(parsed.pathname).base
       }
     }
 
     if (config.client === 'sqlite3') {
       config.useNullAsDefault = true
-      config.connection.filename = config.connection.database
       if (config.connection.filename === 'memory') {
         config.connection.filename = ':memory:'
       }
     }
+
+    // Allow the caller an option to inspect the Knex config.
+    // If the caller returns a truthy value then abort the connection attempt.
+    if (options?.hook(config)) return undefined
 
     this.knex = Knex(config)
     this.toolbox = { ...this.toolbox, knex: this.knex }
