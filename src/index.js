@@ -1,5 +1,5 @@
 const EventEmitter = require('events')
-const path = require('node:path')
+const path = require('path')
 const crypto = require('@persistr/server-crypto')
 const entities = require('./entities')
 const Knex = require('knex')
